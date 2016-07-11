@@ -40,20 +40,20 @@ def softmax_loss_naive(W, X, y, reg):
         sum_scores_grad = 0
         for j in xrange(num_classes):
             sum_scores += np.exp(scores[j] + logc)
-            sum_scores_grad += np.exp(scores[j])
+            sum_scores_grad += np.exp(scores[j] + logc)
 
         for j in xrange(num_classes):
             if j == y[i]:
-                dW[:, j] += - X[i] * (1 - np.exp(scores[j])/sum_scores_grad)
+                dW[:, j] += - X[i] * (1 - np.exp(scores[j] + logc) / sum_scores_grad)
             else:
-                dW[:, j] += - X[i] * (-np.exp(scores[j])/sum_scores_grad)
+                dW[:, j] += - X[i] * (-np.exp(scores[j] + logc) / sum_scores_grad)
 
         loss += -correct_class_score - logc + np.log(sum_scores)
 
-
     loss /= num_train
-    loss += 0.5 * reg * np.sum(W * W)
 
+    # Regularize
+    loss += 0.5 * reg * np.sum(W * W)
     dW /= num_train
 
     # Derivative of regularization above
@@ -82,9 +82,47 @@ def softmax_loss_vectorized(W, X, y, reg):
     # here, it is easy to run into numeric instability. Don't forget the        #
     # regularization!                                                           #
     #############################################################################
-    pass
+    num_train = X.shape[0]
+    num_classes = W.shape[1]
+    sel_rows = range(num_train)
+    scores = X.dot(W)
+
+    # We subtract the max val for each sample because of numeric stability
+    logc_vec = -np.max(scores, axis=1)
+
+    y_vals_vec = np.vstack(scores[sel_rows, y])
+
+    # Subtract the max val
+    scores += np.vstack(logc_vec)
+
+    scores1 = np.sum(np.exp(scores), axis=1)
+    scores2 = np.log(scores1)
+    scores2 = -np.vstack(logc_vec) - y_vals_vec + np.vstack(scores2)
+
+    # Normalize
+    loss = np.sum(scores2) / num_train
+
+    # Regularize
+    loss += 0.5 * reg * np.sum(W * W)
+
+    # Gradient #
+    # Divide all by their appropriate row-sum
+    p = - np.exp(scores) / np.tile(scores1, (num_classes, 1)).T
+
+    # For all correct classes add one
+    p[sel_rows, y] += 1
+
+    dW = -X.T.dot(p)
+
+    # Normalize
+    dW /= num_train
+
+    # Derivative of regularization
+    dW += reg * W
+
     #############################################################################
     #                          END OF YOUR CODE                                 #
     #############################################################################
 
     return loss, dW
+
