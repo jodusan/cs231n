@@ -294,7 +294,6 @@ class FullyConnectedNet(object):
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
 
-
         #l2_grads, grads['W2'], grads['b2'] = affine_backward(a_grads, l2_cache)
         #_, grads['W1'], grads['b1'] = affine_relu_backward(l2_grads, l1_cache)
 
