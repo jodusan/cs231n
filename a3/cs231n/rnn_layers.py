@@ -1,6 +1,5 @@
 import numpy as np
 
-
 """
 This file defines layer types that are commonly used for recurrent neural
 networks.
@@ -64,14 +63,12 @@ def rnn_step_backward(dnext_h, cache):
     ##############################################################################
     x, prev_h, Wx, Wh, next_h = cache
 
-    tanh_deriv = (1-np.square(next_h))*dnext_h
+    tanh_deriv = (1 - np.square(next_h)) * dnext_h
     dx = tanh_deriv.dot(Wx.T)
     dprev_h = tanh_deriv.dot(Wh.T)
     dWx = x.T.dot(tanh_deriv)
     dWh = prev_h.T.dot(tanh_deriv)
     db = np.sum(tanh_deriv, axis=0)
-
-
 
     ##############################################################################
     #                               END OF YOUR CODE                             #
@@ -109,13 +106,13 @@ def rnn_forward(x, h0, Wx, Wh, b):
     h.append(output)
     cache.append(_cache)
 
-    for i in xrange(x.shape[1]-1):
-        output, _cache = rnn_step_forward(x[:, i+1, :], output, Wx, Wh, b)
+    for i in xrange(x.shape[1] - 1):
+        output, _cache = rnn_step_forward(x[:, i + 1, :], output, Wx, Wh, b)
         h.append(output)
         cache.append(_cache)
 
-    print("x ", x.shape)
-    print("h ", np.asarray(h).shape)
+    #print("x ", x.shape)
+    #print("h ", np.asarray(h).shape)
     h = np.asarray(h)
     h = h.swapaxes(0, 1)
 
@@ -145,7 +142,27 @@ def rnn_backward(dh, cache):
     # sequence of data. You should use the rnn_step_backward function that you   #
     # defined above.                                                             #
     ##############################################################################
-    pass
+
+    T = dh.shape[1]-1
+
+    dx = []
+
+    dx_t, dh0, dWx, dWh, db = rnn_step_backward(dh[:, T, :], cache[T])
+    dx.append(dx_t)
+
+    for i in reversed(xrange(T)):
+        # i = 8,7,6,5,4,3,2,1,0
+        # (T-1)-i = 0,1,2,3,4,5,6,7,8
+        dx_t, dh0, dWx_t, dWh_t, db_t = rnn_step_backward(dh[:, i, :]+dh0, cache[i])
+        dWx += dWx_t
+        dWh += dWh_t
+        db += db_t
+        dx.append(dx_t)
+
+    dx.reverse()
+    dx = np.asarray(dx)
+    dx = dx.swapaxes(0, 1)
+
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -173,7 +190,12 @@ def word_embedding_forward(x, W):
     #                                                                            #
     # HINT: This should be very simple.                                          #
     ##############################################################################
-    pass
+    D = W.shape[1]
+    out_t = x
+    out_t = np.expand_dims(out_t, 2)
+    out_t = np.tile(out_t, (1, 1, D))
+    out = W[out_t[:, :, 0]]
+    cache = (x, out, W)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -185,8 +207,6 @@ def word_embedding_backward(dout, cache):
     Backward pass for word embeddings. We cannot back-propagate into the words
     since they are integers, so we only return gradient for the word embedding
     matrix.
-
-    HINT: Look up the function np.add.at
 
     Inputs:
     - dout: Upstream gradients of shape (N, T, D)
@@ -201,7 +221,9 @@ def word_embedding_backward(dout, cache):
     #                                                                            #
     # HINT: Look up the function np.add.at                                       #
     ##############################################################################
-    pass
+    x, out, W = cache
+    dW = np.zeros(W.shape)
+    np.add.at(dW, x, dout)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -443,4 +465,3 @@ def temporal_softmax_loss(x, y, mask, verbose=False):
     dx = dx_flat.reshape(N, T, V)
 
     return loss, dx
-
