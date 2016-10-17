@@ -221,42 +221,22 @@ class CaptioningRNN(object):
         # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
         # a loop.                                                                 #
         ###########################################################################
-        hid_state, _ = affine_forward(features, W_proj, b_proj)
-        wvec, _ = word_embedding_forward(self._start, W_embed)
-        next_hid_state, _ = rnn_step_forward(wvec, hid_state, Wx, Wh, b)
-        hid_state_n, _ = affine_forward(next_hid_state, W_vocab, b_vocab)
-        print(hid_state_n.shape)
+        #feed_once = self._start * np.ones((N, 1), dtype=int)
 
+        h0, _ = affine_forward(features, W_proj, b_proj)
+        prev_h = h0
+        captions[:, 0] = self._start
+        current = self._start * np.ones((N, 1), dtype=int)
+        for i in xrange(max_length-1):
+            wembed, _ = word_embedding_forward(current, W_embed)
+            if self.cell_type == 'rnn':
+                h, _ = rnn_step_forward(np.squeeze(wembed), prev_h, Wx, Wh, b)
+            elif self.cell_type == 'lstm':
+                pass
 
-
-
-        # affine_out, affine_cache = affine_forward(features, W_proj, b_proj)
-        # w_embed_out, w_embed_cache = word_embedding_forward(captions_in, W_embed)
-        #
-        # if self.cell_type == 'rnn':
-        #     rnn_out, rnn_cache = rnn_forward(w_embed_out, affine_out, Wx, Wh, b)
-        # elif self.cell_type == 'lstm':
-        #     pass
-        #
-        # taffi_out, taffi_cache = temporal_affine_forward(rnn_out, W_vocab, b_vocab)
-        #
-        # # Loss
-        # loss, dx_out = temporal_softmax_loss(taffi_out, captions_out, mask)
-        #
-        # # Backward
-        # aff_dx, grads['W_vocab'], grads['b_vocab'] = \
-        #     temporal_affine_backward(dx_out, taffi_cache)
-        #
-        # if self.cell_type == 'rnn':
-        #     dx_g, dh_g, grads['Wx'], grads['Wh'], grads['b'] = \
-        #         rnn_backward(aff_dx, rnn_cache)
-        # elif self.cell_type == 'lstm':
-        #     pass
-        #
-        # grads['W_embed'] = word_embedding_backward(dx_g, w_embed_cache)
-        # _, grads['W_proj'], grads['b_proj'] = \
-        #     affine_backward(dh_g, affine_cache)
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+            scores, _ = temporal_affine_forward(h[:, np.newaxis, :], W_vocab, b_vocab)
+            idx_best = np.squeeze(np.argmax(scores, axis=2))
+            captions[:, i] = idx_best
+            prev_h = h
+            current = captions[:, i]
         return captions
